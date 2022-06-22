@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
+import ReactModal from 'react-modal';
+
 import algoliasearch from 'algoliasearch/lite';
 import {
   InstantSearch,
@@ -6,7 +8,6 @@ import {
   Hits,
   SearchBox,
   DynamicWidgets,
-  Panel,
   RefinementList,
   Pagination,
   Highlight,
@@ -19,19 +20,64 @@ const searchClient = algoliasearch(
   'aadef574be1f9252bb48d4ea09b5cfe5'
 );
 
-function App() {
+const BASKET_DATA = 'BASKET_DATA';
+const getParsedData = (data, isParse = false) => isParse ? JSON.parse(data) || [] : JSON.stringify(data);
+
+const addToBasket = ({ objectID, name }) => {
+  const basket = getParsedData(localStorage.getItem(BASKET_DATA), true);
+  const element = basket.find(elem => elem.objectID === objectID);
+  if (element) {
+    element.count++;
+    localStorage.setItem(BASKET_DATA, getParsedData(basket));
+  } else {
+    const newElement = {
+      objectID,
+      name,
+      count: 1,
+    };
+    localStorage.setItem(BASKET_DATA, getParsedData([...basket, newElement]));
+  }
+};
+
+const buttonProps = {
+  style: {
+    cursor: 'pointer',
+  },
+};
+
+const App = () => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const renderBasketList = getParsedData(localStorage.getItem(BASKET_DATA), true).map(item => (
+    <>
+      <div key={item.objectID}>
+        * {item.name} - {item.objectID} - {item.count} шт.
+      </div>
+      <hr />
+    </>
+  ));
+
   return (
     <div>
+      <ReactModal isOpen={isOpen}>
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <div>Корзина</div>
+            <button {...buttonProps} onClick={() => setIsOpen(false)}>
+              Закрыть
+            </button>
+          </div>
+          <hr />
+          {renderBasketList}
+        </>
+      </ReactModal>
       <header className="header">
         <h1 className="header-title">
           <a href="/">lab_2</a>
         </h1>
-        <p className="header-subtitle">
-          using{' '}
-          <a href="https://github.com/algolia/react-instantsearch">
-            React InstantSearch
-          </a>
-        </p>
+        <button {...buttonProps} onClick={() => setIsOpen(true)}>
+          Корзина
+        </button>
       </header>
 
       <div className="container">
@@ -39,7 +85,7 @@ function App() {
           <Configure hitsPerPage={8} />
           <div className="search-panel">
             <div className="search-panel__filters">
-              <DynamicWidgets fallbackWidget={RefinementList}></DynamicWidgets>
+              <DynamicWidgets fallbackWidget={RefinementList} />
             </div>
 
             <div className="search-panel__results">
@@ -60,13 +106,13 @@ function App() {
       </div>
     </div>
   );
-}
+};
 
-function Hit(props) {
+function Hit({ hit }) {
   return (
     <article>
-      <h1>
-        <Highlight attribute="name" hit={props.hit} />
+      <h1 {...buttonProps} onClick={() => addToBasket(hit)}>
+        <Highlight attribute="name" hit={hit} />
       </h1>
     </article>
   );
